@@ -15,12 +15,14 @@
 
 @interface GSTimeIntervalPicker : UIPickerView
 
-@property (nonatomic) NSTimeInterval maxTimeInterval;
-@property (nonatomic) NSInteger minuteInterval;         // Used as a 'step' in minutes column. Default is 1 minute.
+@property (nonatomic, assign) NSTimeInterval maxTimeInterval;
+@property (nonatomic, assign) NSInteger minuteInterval;         // Used as a 'step' in minutes column. Default is 1 minute.
 
-@property (nonatomic) BOOL allowZeroTimeInterval;       // Default is NO.
+@property (nonatomic, assign) BOOL allowZeroTimeInterval;       // Default is NO.
+@property (nonatomic, assign) BOOL infiniteScroll;       // Default is NO.
 
-@property (nonatomic) NSTimeInterval timeInterval;
+@property (nonatomic, assign) NSTimeInterval timeInterval;
+
 - (void)setTimeInterval:(NSTimeInterval)timeInterval animated:(BOOL)animated;
 
 @property (copy) void (^onTimeIntervalChanged)(NSTimeInterval newTimeInterval);

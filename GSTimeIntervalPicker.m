@@ -7,6 +7,7 @@
 //
 
 #import "GSTimeIntervalPicker.h"
+#import "Common.h"
 
 #define kComponentViewWidth     80
 #define kComponentViewHeight    32
@@ -22,18 +23,16 @@
 @property (nonatomic, strong) UILabel *hoursLabel;
 @property (nonatomic, strong) UILabel *minLabel;
 
-@property (nonatomic) NSInteger step;
-@property (nonatomic) NSInteger countOfMinuteSteps;     // How many steps fit within one hour.
-@property (nonatomic) NSInteger countOfHours;           // How many hours do we display.
-@property (nonatomic) NSInteger maxMinutesRemainder;    // Used to limit upper-bound selection.
+@property (nonatomic, assign) NSInteger step;
+@property (nonatomic, assign) NSInteger countOfMinuteSteps;     // How many steps fit within one hour.
+@property (nonatomic, assign) NSInteger countOfHours;           // How many hours do we display.
+@property (nonatomic, assign) NSInteger maxMinutesRemainder;    // Used to limit upper-bound selection.
 
-@property (nonatomic) BOOL showingHoursPlural;
+@property (nonatomic, assign) BOOL showingHoursPlural;
 
 @end
 
-
 @implementation GSTimeIntervalPicker
-
 
 #pragma mark - Initialization
 
@@ -54,25 +53,26 @@
 - (void)initialize {
     self.dataSource = self;
     self.delegate = self;
-
+    
     _step = 5;
     _countOfMinuteSteps = 60 / _step;
     _allowZeroTimeInterval = NO;
     _showingHoursPlural = YES;
     
     // This ensures the selection lines are visible (fix found at http://stackoverflow.com/a/40076366/1459762)
-    [self selectRow:0 inComponent:0 animated:YES];
+    [self selectRow:0 inComponent:0 animated:NO];
     
-    self.maxTimeInterval = (3600 * 3);      // 3 hours
+    self.maxTimeInterval = 3600 * 23;
     
     // Create and add static labels.
-    self.hoursLabel = [self newStaticLabelWithText:NSLocalizedString(@"hours", nil)];
+    self.hoursLabel = [self newStaticLabelWithText:[LI18n localizedString:@"hours"]];
     [self addSubview:self.hoursLabel];
     
-    self.minLabel = [self newStaticLabelWithText:NSLocalizedString(@"min", nil)];
+    self.minLabel = [self newStaticLabelWithText:[LI18n localizedString:@"min"]];
     [self addSubview:self.minLabel];
     
     [self updateStaticLabelsPositions];
+    
     [self reloadAllComponents];
 }
 
@@ -100,23 +100,24 @@
     self.minLabel.frame = CGRectMake(x2, y, 75, kComponentViewHeight);
 }
 
-
 #pragma mark - Public methods
 
 - (void)setMaxTimeInterval:(NSTimeInterval)maxTimeInterval {
-    _maxTimeInterval = maxTimeInterval;
-    
-    NSInteger maxTimeIntervalInMinutes = (NSInteger)(maxTimeInterval / 60);
-    NSInteger hours = maxTimeIntervalInMinutes / 60;
-    NSInteger mins = maxTimeIntervalInMinutes - (hours * 60);
-    
-    _maxMinutesRemainder = mins;
-    _countOfHours = hours;
-    [self reloadComponent:kComponentHours];
-    [self reloadComponent:kComponentMinutes];
-    
-    // Force the reload
-    self.timeInterval = MIN(self.timeInterval, self.maxTimeInterval);
+    if (maxTimeInterval != _maxTimeInterval) {
+        _maxTimeInterval = maxTimeInterval;
+        
+        NSInteger maxTimeIntervalInMinutes = (NSInteger)(maxTimeInterval / 60);
+        NSInteger hours = maxTimeIntervalInMinutes / 60;
+        NSInteger mins = maxTimeIntervalInMinutes - (hours * 60);
+        
+        _maxMinutesRemainder = mins;
+        _countOfHours = hours;
+        [self reloadComponent:kComponentHours];
+        [self reloadComponent:kComponentMinutes];
+        
+        // Force the reload
+        self.timeInterval = MIN(self.timeInterval, self.maxTimeInterval);
+    }
 }
 
 - (void)setTimeInterval:(NSTimeInterval)timeInterval {
@@ -124,53 +125,63 @@
 }
 
 - (void)setTimeInterval:(NSTimeInterval)timeInterval animated:(BOOL)animated {
-    _timeInterval = timeInterval;
-    
-    NSAssert(timeInterval <= self.maxTimeInterval, @"GSTimeIntervalPicker -setTimeInterval: argument is higher than maxTimeInterval.");
-    
-    _timeInterval = timeInterval;
-    
-    NSInteger durationInMinutes = (NSInteger)(timeInterval / 60);
-    NSInteger hours = durationInMinutes / 60;
-    NSInteger mins = durationInMinutes - (hours * 60);
-    
-    [self selectRow:hours inComponent:kComponentHours animated:animated];
-    
-    
-    NSInteger selectedRow = [self selectedRowInComponent:kComponentMinutes];
-    
-    if (selectedRow == 0) {
-        // We are still in the initialization steps -> place ourselves in the middle
-        NSInteger newMinutesRow = (NSInteger)round((CGFloat)mins / (CGFloat)_step);
-        if (_countOfHours > 0) {
-            // Place it in the middle of our 'infinite' wheel.
-            newMinutesRow += (_countOfMinuteSteps * (kLargeInteger / 2));
-        }
-        [self selectRow:newMinutesRow inComponent:kComponentMinutes animated:animated];
-    }
-    else {
-        // Scroll by the shortest possible amount to the newly selected minutes.
-        NSInteger currentMins = (selectedRow % _countOfMinuteSteps) * _step;
-        NSInteger changeOfMinutes = mins - currentMins;
-        if (changeOfMinutes > 30) {
-            // Scroll the other way around
-            changeOfMinutes = changeOfMinutes - 60;
-        }
-        NSInteger changeInSteps = (NSInteger)roundf((CGFloat)changeOfMinutes / _step);
-        if (changeInSteps == 0) {
-            // We are over limit, but when divided by step, it gets rounded off to zero -> scroll down anyway.
-            changeInSteps = -1;
+    if (_timeInterval != timeInterval) {
+        _timeInterval = timeInterval;
+        
+        NSAssert(timeInterval <= self.maxTimeInterval, @"GSTimeIntervalPicker -setTimeInterval: argument is higher than maxTimeInterval.");
+        
+        NSInteger durationInMinutes = (NSInteger)(timeInterval / 60);
+        NSInteger hours = durationInMinutes / 60;
+        NSInteger mins = durationInMinutes - (hours * 60);
+        
+        if (durationInMinutes && (hours != 0 || mins != 0)) {
+            [self selectRow:hours inComponent:kComponentHours animated:animated];
+            
+            NSInteger selectedRow = [self selectedRowInComponent:kComponentMinutes];
+            
+            if (selectedRow == 0) {
+                // We are still in the initialization steps -> place ourselves in the middle
+                NSInteger newMinutesRow = (NSInteger)round((CGFloat)mins / (CGFloat)_step);
+                if (_infiniteScroll && _countOfHours > 0) {
+                    // Place it in the middle of our 'infinite' wheel.
+                    newMinutesRow += (_countOfMinuteSteps * (kLargeInteger / 2));
+                }
+                [self selectRow:newMinutesRow inComponent:kComponentMinutes animated:animated];
+            }
+            else {
+                // Scroll by the shortest possible amount to the newly selected minutes.
+                NSInteger currentMins = (selectedRow % _countOfMinuteSteps) * _step;
+                NSInteger changeOfMinutes = mins - currentMins;
+                if (changeOfMinutes > 30) {
+                    // Scroll the other way around
+                    changeOfMinutes = changeOfMinutes - 60;
+                }
+                NSInteger changeInSteps = (NSInteger)roundf((CGFloat)changeOfMinutes / _step);
+                if (changeInSteps == 0) {
+                    // We are over limit, but when divided by step, it gets rounded off to zero -> scroll down anyway.
+                    changeInSteps = -1;
+                }
+                
+                [self selectRow:selectedRow + changeInSteps inComponent:kComponentMinutes animated:animated];
+            }
         }
         
-        [self selectRow:selectedRow + changeInSteps inComponent:kComponentMinutes animated:animated];
+        self.showingHoursPlural = (hours != 1);
     }
-    
-    self.showingHoursPlural = (hours != 1);
+}
+
+- (void)setInfiniteScroll:(BOOL)infiniteScroll {
+    if (infiniteScroll != _infiniteScroll) {
+        _infiniteScroll = infiniteScroll;
+        
+        [self reloadAllComponents];
+    }
 }
 
 - (void)setMinuteInterval:(NSInteger)minuteInterval {
     // Check the validity
     NSArray *validMinuteIntervals = @[@1, @2, @3, @4, @5, @6, @10, @12, @15, @20, @30];
+    
     if ([validMinuteIntervals containsObject:@(minuteInterval)] == NO) {
         minuteInterval = 1;     // Minute interval wasn't valid, use the default one
     }
@@ -184,12 +195,13 @@
     NSInteger timeIntervalInMinutes = (NSInteger)(self.timeInterval / 60);
     NSInteger minutes = timeIntervalInMinutes % 60;
     NSInteger newMinutesRow = (NSInteger)round((CGFloat)minutes / (CGFloat)_step);
+    
     if (newMinutesRow * _step > _maxMinutesRemainder) {
         // Disallow the integer rounding to exceed our limit.
         newMinutesRow -= 1;
     }
     
-    if (_countOfHours > 0) {
+    if (_infiniteScroll && _countOfHours > 0) {
         // Place it in the middle of our 'infinite' wheel
         newMinutesRow += (_countOfMinuteSteps * kLargeInteger / 2);
     }
@@ -201,7 +213,6 @@
     return _step;
 }
 
-
 #pragma mark - UIPickerView Datasource
 
 - (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pickerView {
@@ -209,23 +220,26 @@
 }
 
 - (NSInteger)pickerView:(UIPickerView *)pickerView numberOfRowsInComponent:(NSInteger)component {
+    NSInteger c = 0;
     
     switch (component) {
         case kComponentHours:
-            return _countOfHours + 1;       // We have to account for the '0 hours' row.
+            c = _countOfHours ? _countOfHours + 1 : 0;
+            break;
             
         case kComponentMinutes:
             if (_countOfHours > 0) {
-                return _countOfMinuteSteps * kLargeInteger;
-            } else {
-                return (_maxMinutesRemainder / _step) + 1;      // The '+1' is to account for the 0 at the beginning.
+                c = _countOfMinuteSteps * (_infiniteScroll ? kLargeInteger : 1);
+            } else if (_maxMinutesRemainder > 0) {
+                c = (_maxMinutesRemainder / _step) + 1;      // The '+1' is to account for the 0 at the beginning.
             }
-        
+            break;
+            
         default:
             break;
     }
     
-    return 0;
+    return c;
 }
 
 - (UIView *)pickerView:(UIPickerView *)pickerView viewForRow:(NSInteger)row forComponent:(NSInteger)component reusingView:(UIView *)view {
@@ -262,7 +276,6 @@
 - (CGFloat)pickerView:(UIPickerView *)pickerView widthForComponent:(NSInteger)component {
     return 106;
 }
-
 
 #pragma mark - UIPickerView delegate
 
@@ -331,7 +344,7 @@
     
     [self.hoursLabel.layer addAnimation:animation forKey:@"kCAFadeTransition"];
     
-    self.hoursLabel.text = showingHoursPlural ? NSLocalizedString(@"hours", nil) : NSLocalizedString(@"hour", nil);
+    self.hoursLabel.text = showingHoursPlural ? [LI18n localizedString:@"hours"] : [LI18n localizedString:@"hour"];
 }
 
 
