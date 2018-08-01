@@ -23,6 +23,8 @@
 
 @property (nonatomic, assign) NSTimeInterval timeInterval;
 
+@property (nonatomic, strong) UIFont *pickerFont;
+
 - (void)setTimeInterval:(NSTimeInterval)timeInterval animated:(BOOL)animated;
 
 @property (copy) void (^onTimeIntervalChanged)(NSTimeInterval newTimeInterval);

@@ -79,7 +79,11 @@
 - (UILabel *)newStaticLabelWithText:(NSString *)text {
     UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 75, kComponentViewHeight)];
     label.text = text;
-    label.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
+    if (self.pickerFont) {
+        label.font = self.pickerFont;
+    } else {
+        label.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
+    }
     return label;
 }
 
@@ -249,8 +253,14 @@
     if (viewWithLabel == nil) {
         viewWithLabel = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kComponentViewWidth, kComponentViewHeight)];
         
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(11, 0, 30, kComponentViewHeight)];
-        label.font = [UIFont systemFontOfSize:23];
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(- 20.0, 0, 30, kComponentViewHeight)];
+        
+        if (self.pickerFont) {
+            label.font = self.pickerFont;
+        } else {
+            label.font = [UIFont systemFontOfSize:23];
+        }
+        
         label.textAlignment = NSTextAlignmentRight;
         [viewWithLabel addSubview:label];
     }
